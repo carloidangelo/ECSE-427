@@ -55,12 +55,12 @@ void RPC_Serve_Client(rpc_t r, char* client_msg){
     }else if (strcmp(tokens[0], "factorial") == 0){
         sprintf(result_str, "%lu", factorial(atoi(tokens[1])));
     }else if (strcmp(tokens[0], "sleep") == 0){
-        sleep(atoi(tokens[1]));
+        sleepBackend(atoi(tokens[1]));
     }else if (strcmp(tokens[0], "shutdown") == 0){
         sprintf(client_msg,"%s","shutdown");
         sprintf(result_str,"%s","Bye!");
     }else if (strcmp(tokens[0], "exit") == 0){
-        sprintf(client_msg,"%s"," ");
+        sprintf(client_msg,"%s","exit");
         sprintf(result_str,"%s","Bye!");
     }else{
         char error_msg[BUFSIZE]  = "Error: Command {";

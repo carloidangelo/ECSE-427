@@ -6,9 +6,9 @@ CFLAGS=-fsanitize=signed-integer-overflow -fsanitize=undefined -g -std=gnu99 -O2
 CLIENT=frontend
 SERVER=backend
 
-rpc: a1_lib.c backend.c frontend.c RPCbackend.c RPCfrontend.c
-	$(CC) -o $(CLIENT) $(CFLAGS) frontend.c RPCfrontend.c a1_lib.c 
-	$(CC) -o $(SERVER) $(CFLAGS) backend.c RPCbackend.c a1_lib.c
+rpc: a1_lib.c backend.c frontend.c RPCbackend.c RPCfrontend.c RPC.c
+	$(CC) -o $(CLIENT) $(CFLAGS) frontend.c RPCfrontend.c RPC.c a1_lib.c 
+	$(CC) -o $(SERVER) $(CFLAGS) backend.c RPCbackend.c RPC.c a1_lib.c
 
 clean:
 	rm -rf $(CLIENT) $(SERVER)

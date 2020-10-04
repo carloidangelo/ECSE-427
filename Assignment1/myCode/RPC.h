@@ -6,4 +6,6 @@ typedef struct{
  int error_status; // -1 if error occurs, 0 otherwise
 }rpc_t;
 
+void RPC_Close(rpc_t r);
+
 #endif // RPC_

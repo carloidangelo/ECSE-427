@@ -8,7 +8,7 @@ int multiplyInts(int a, int b);
 
 float divideFloats(float a, float b);
 
-void sleep(int x);
+void sleepBackend(int x);
 
 uint64_t factorial(int x);
 

@@ -14,11 +14,7 @@ int main(int argc, char* argv[]){
         fprintf(stderr, "oh no\n");
         return -1;
     }
-
-    while (strcmp(user_input, "shutdown")) {
-        if (strcmp(user_input, "exit") == 0){
-            break;
-        }
+    while (strcmp(user_input, "shutdown") && strcmp(user_input, "exit")) {
         memset(user_input, 0, sizeof(user_input));
         memset(server_msg, 0, sizeof(server_msg));
         // prompt user
@@ -35,5 +31,6 @@ int main(int argc, char* argv[]){
         token = strtok(user_input, " ");
         sprintf(user_input,"%s", token);
     }
+    RPC_Close(socket_info);
     return 0;
 }
