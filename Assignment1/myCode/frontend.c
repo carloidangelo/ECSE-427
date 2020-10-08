@@ -21,7 +21,7 @@ int main(int argc, char* argv[]){
         printf(">> ");
         // read user input from command line
         if (fgets(user_input, BUFSIZE, stdin) != NULL){
-            // send input to RPC
+            // send input to client stub
             RPC_Call(socket_info, user_input);
         }
         RPC_getAns(socket_info, server_msg);

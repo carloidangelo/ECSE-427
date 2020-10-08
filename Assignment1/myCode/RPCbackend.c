@@ -1,3 +1,6 @@
+/*
+SERVER STUB
+*/
 #include "backend.h"
 #include "a1_lib.h"
 #include "RPCbackend.h"
@@ -33,7 +36,9 @@ void RPC_Serve_Client(rpc_t r, char* client_msg){
     memset(tokens, 0, sizeof(tokens));
     memset(result_str, 0, sizeof(result_str));
 
+    // receive message from client
     ssize_t byte_count = recv_message(r.sockfd, client_msg, BUFSIZE);
+    // parse client message
     token = strtok(client_msg, "\n");
     token = strtok(client_msg, " ");
     count = 0;
@@ -42,6 +47,7 @@ void RPC_Serve_Client(rpc_t r, char* client_msg){
         token = strtok(NULL, " ");
         count++;
     }
+    // call corresponding backend method
     if (strcmp(tokens[0], "add") == 0){
         sprintf(result_str, "%d", addInts(atoi(tokens[1]),atoi(tokens[2])));
     }else if (strcmp(tokens[0], "multiply") == 0){
@@ -56,6 +62,7 @@ void RPC_Serve_Client(rpc_t r, char* client_msg){
         sprintf(result_str, "%lu", factorial(atoi(tokens[1])));
     }else if (strcmp(tokens[0], "sleep") == 0){
         sleepBackend(atoi(tokens[1]));
+        sprintf(result_str,"%s","Back Online");
     }else if (strcmp(tokens[0], "shutdown") == 0){
         sprintf(client_msg,"%s","shutdown");
         sprintf(result_str,"%s","Bye!");
@@ -68,5 +75,6 @@ void RPC_Serve_Client(rpc_t r, char* client_msg){
         strcat(error_msg, "} not found");
         sprintf(result_str,"%s", error_msg);
     }
+    // send answer or return message back to client
     send_message(r.sockfd, result_str, BUFSIZE);
 }

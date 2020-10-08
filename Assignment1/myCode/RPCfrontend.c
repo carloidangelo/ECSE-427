@@ -1,3 +1,6 @@
+/*
+CLIENT STUB
+*/
 #include "a1_lib.h"
 #include "RPCfrontend.h"
 

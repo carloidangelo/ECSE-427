@@ -37,6 +37,7 @@ int main(int argc, char* argv[]){
     char client_msg[BUFSIZE] = { 0 };
     int pid;
     int rval;
+    // create server
     rpc_t server_info = RPC_Init(argv[1],(uint16_t) atoi(argv[2]));
     if (server_info.error_status < 0){
         fprintf(stderr, "oh no\n");
@@ -44,6 +45,7 @@ int main(int argc, char* argv[]){
     }else{
         printf("Server listening on %s:%s\n", argv[1], argv[2]);
     }
+    // accept connections from clients
     while (1){
         cnct_for_client = RPC_Acpt(server_info);
         if (cnct_for_client.error_status < 0){
@@ -61,8 +63,8 @@ int main(int argc, char* argv[]){
     }
 
     while (strcmp(client_msg, "shutdown") && strcmp(client_msg, "exit")) {
-        // get user request
         memset(client_msg, 0, BUFSIZE);
+        // serve client
         RPC_Serve_Client(cnct_for_client, client_msg);
     }
     RPC_Close(cnct_for_client);
