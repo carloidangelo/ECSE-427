@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include "RPCbackend.h"
 #include "backend.h"
 
@@ -35,6 +37,7 @@ uint64_t factorial(int x){
 int main(int argc, char* argv[]){
     rpc_t cnct_for_client;
     char client_msg[BUFSIZE] = { 0 };
+    int shutdown_status = 0;
     int pid;
     int rval;
     // create server
@@ -52,21 +55,41 @@ int main(int argc, char* argv[]){
             fprintf(stderr, "oh no\n");
             return -1;
         }
-        pid = fork();
-        if (pid < 0){ //error occured
-            fprintf(stderr, "Fork failed");
-            return -1;
-        }else if (pid == 0){ //child process
+        waitpid(-1, &rval, WNOHANG);
+        if (WEXITSTATUS(rval) != 15){
+            pid = fork();
+            if (pid < 0){ //error occured
+                fprintf(stderr, "Fork failed");
+                return -1;
+            }else if (pid == 0){ //child process
+                break;
+            }else{ //parent process
+                // continue listening for more clients
+            }
+        }else {
+            RPC_Close(server_info);
+            shutdown_status = 1;
             break;
-        }else{ //parent process
         }
     }
 
-    while (strcmp(client_msg, "shutdown") && strcmp(client_msg, "exit")) {
+    while (strcmp(client_msg, "shutdown") && strcmp(client_msg, "exit") && !shutdown_status) {
         memset(client_msg, 0, BUFSIZE);
         // serve client
         RPC_Serve_Client(cnct_for_client, client_msg);
     }
+    // close connection
     RPC_Close(cnct_for_client);
+
+    // child returns 15 to parent after shutdown
+    if (strcmp(client_msg, "shutdown") == 0){
+        return 15;
+    }
+    
+    // before shutdown of backend, check if there are any child processes still
+    // runninng
+    while(waitpid(-1, &rval,0) != -1){
+    }
+    
     return 0;
 }

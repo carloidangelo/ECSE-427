@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/socket.h>
 #include "RPCfrontend.h"
 
 #define BUFSIZE 1024
@@ -15,6 +16,10 @@ int main(int argc, char* argv[]){
         return -1;
     }
     while (strcmp(user_input, "shutdown") && strcmp(user_input, "exit")) {
+        if (RPC_check_cnt(socket_info) == -1){
+            printf("%s\n", "Error: Server is shutdown");
+            break;
+        }
         memset(user_input, 0, sizeof(user_input));
         memset(server_msg, 0, sizeof(server_msg));
         // prompt user

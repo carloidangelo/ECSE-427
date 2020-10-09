@@ -9,4 +9,6 @@ void RPC_Call(rpc_t r, char* input);
 
 void RPC_getAns(rpc_t r, char* server_msg);
 
+int RPC_check_cnt(rpc_t r);
+
 #endif // RPC_FRONTEND_

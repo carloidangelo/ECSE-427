@@ -70,9 +70,9 @@ void RPC_Serve_Client(rpc_t r, char* client_msg){
         sprintf(client_msg,"%s","exit");
         sprintf(result_str,"%s","Bye!");
     }else{
-        char error_msg[BUFSIZE]  = "Error: Command {";
+        char error_msg[BUFSIZE]  = "Error: Command \"";
         strcat(error_msg, tokens[0]);
-        strcat(error_msg, "} not found");
+        strcat(error_msg, "\" not found");
         sprintf(result_str,"%s", error_msg);
     }
     // send answer or return message back to client

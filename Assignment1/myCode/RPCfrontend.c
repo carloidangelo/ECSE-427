@@ -23,3 +23,10 @@ void RPC_Call(rpc_t r, char* input){
 void RPC_getAns(rpc_t r, char* server_msg){
     ssize_t byte_count = recv_message(r.sockfd, server_msg, BUFSIZE);
 }
+
+int RPC_check_cnt(rpc_t r){
+    struct sockaddr addr;
+    socklen_t len;
+    int status = getpeername(r.sockfd, &addr, &len);
+    return status;
+}
