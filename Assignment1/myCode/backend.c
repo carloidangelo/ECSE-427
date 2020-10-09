@@ -36,12 +36,13 @@ uint64_t factorial(int x){
 
 int main(int argc, char* argv[]){
     rpc_t cnct_for_client;
+    rpc_t server_info;
     char client_msg[BUFSIZE] = { 0 };
     int shutdown_status = 0;
     int pid;
     int rval;
     // create server
-    rpc_t server_info = RPC_Init(argv[1],(uint16_t) atoi(argv[2]));
+    server_info = RPC_Init(argv[1],(uint16_t) atoi(argv[2]));
     if (server_info.error_status < 0){
         fprintf(stderr, "oh no\n");
         return -1;
@@ -67,7 +68,9 @@ int main(int argc, char* argv[]){
                 // continue listening for more clients
             }
         }else {
+            // close server
             RPC_Close(server_info);
+            printf("Server no longer listening on %s:%s\n", argv[1], argv[2]);
             shutdown_status = 1;
             break;
         }
@@ -82,7 +85,7 @@ int main(int argc, char* argv[]){
     RPC_Close(cnct_for_client);
 
     // child returns 15 to parent after shutdown
-    if (strcmp(client_msg, "shutdown") == 0){
+    if (!strcmp(client_msg, "shutdown")){
         return 15;
     }
     
@@ -90,6 +93,6 @@ int main(int argc, char* argv[]){
     // runninng
     while(waitpid(-1, &rval,0) != -1){
     }
-    
+
     return 0;
 }

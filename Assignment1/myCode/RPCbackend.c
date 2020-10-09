@@ -62,7 +62,6 @@ void RPC_Serve_Client(rpc_t r, char* client_msg){
         sprintf(result_str, "%lu", factorial(atoi(tokens[1])));
     }else if (strcmp(tokens[0], "sleep") == 0){
         sleepBackend(atoi(tokens[1]));
-        sprintf(result_str,"%s","Back Online");
     }else if (strcmp(tokens[0], "shutdown") == 0){
         sprintf(client_msg,"%s","shutdown");
         sprintf(result_str,"%s","Bye!");
