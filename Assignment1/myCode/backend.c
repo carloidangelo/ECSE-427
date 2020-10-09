@@ -41,6 +41,7 @@ int main(int argc, char* argv[]){
     int shutdown_status = 0;
     int pid;
     int rval;
+    
     // create server
     server_info = RPC_Init(argv[1],(uint16_t) atoi(argv[2]));
     if (server_info.error_status < 0){
