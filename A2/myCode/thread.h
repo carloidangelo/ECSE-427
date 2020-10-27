@@ -2,7 +2,6 @@
 #define __THREAD__
 
 #include <ucontext.h>
-#define MAX_EXEC                           2
 #define MAX_THREADS                        32
 #define THREAD_STACK_SIZE                  1024*64
 
