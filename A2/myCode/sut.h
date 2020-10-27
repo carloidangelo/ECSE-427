@@ -1,7 +1,6 @@
 #ifndef __SUT_H__
 #define __SUT_H__
 #include <stdbool.h>
-#include <stdio.h> 
 
 typedef void (*sut_task_f)();
 

@@ -82,7 +82,7 @@ bool sut_create(sut_task_f fn)
 {
 	threaddesc *tdescptr;
 
-	if (numthreads >= 32) 
+	if (numthreads >= MAX_THREADS) 
 	{
 		printf("FATAL: Maximum thread limit reached... creation failed! \n");
 		return false;
@@ -151,7 +151,9 @@ void sut_write(char *buf, int size)
 
 void sut_close()
 {
+	pthread_mutex_lock(&lock);
 	struct queue_entry *elem = queue_pop_head(&q_task);
+	pthread_mutex_unlock(&lock);
 	i_exec_node = elem;
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	close(sockfd);
