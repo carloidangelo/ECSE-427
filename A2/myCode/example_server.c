@@ -8,7 +8,7 @@
 int main(void) {
   int sockfd, clientfd;
   char msg[BUFSIZE];
-  const char *greeting = "hello, world\n";
+  const char *greeting = "hello, world";
   int running = 1;
 
   if (create_server("0.0.0.0", 15150, &sockfd) < 0) {
@@ -22,13 +22,13 @@ int main(void) {
   }
 
   while (strcmp(msg, "quit\n")) {
-    memset(msg, 0, sizeof(msg));
-    ssize_t byte_count = recv_message(clientfd, msg, BUFSIZE);
-    if (byte_count <= 0) {
-      break;
-    }
-    printf("Client: %s\n", msg);
-    //send_message(clientfd, greeting, strlen(greeting));
+    //memset(msg, 0, sizeof(msg));
+    //ssize_t byte_count = recv_message(clientfd, msg, BUFSIZE);
+    //if (byte_count <= 0) {
+      //break;
+    //}
+    //printf("Client: %s", msg);
+    send_message(clientfd, greeting, strlen(greeting));
   }
 
   return 0;

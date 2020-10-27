@@ -9,6 +9,7 @@
 #include "thread.h"   
 #include "a1_lib.h"                                                            
 #include "sut.h"
+
 #define BUFSIZE 128
 
 struct queue q_task;
@@ -25,7 +26,7 @@ threaddesc threadarr[MAX_THREADS];
 int numthreads, numthreadscancelled;
 
 int sockfd;
-char read_msg[BUFSIZE];
+char msg[BUFSIZE];
 
 void *c_exec()
 {
@@ -53,10 +54,8 @@ void *i_exec()
 		if (numthreads > 0 && numthreads-numthreadscancelled == 0){
 			pthread_exit(0);
 		}else if (i_exec_node == NULL){
-			struct timespec tim, tim2;
-   			tim.tv_sec = 0;
-   			tim.tv_nsec = 100 * 1000;
-			nanosleep(&tim,&tim2);
+			// do nothing
+			continue;
 		}else{
 			swapcontext(&i_exec_context, &(i_exec_node->thread->threadcontext));
 			pthread_mutex_lock(&lock);
@@ -82,7 +81,7 @@ bool sut_create(sut_task_f fn)
 {
 	threaddesc *tdescptr;
 
-	if (numthreads >= 32) 
+	if (numthreads >= MAX_THREADS) 
 	{
 		printf("FATAL: Maximum thread limit reached... creation failed! \n");
 		return false;
@@ -100,8 +99,9 @@ bool sut_create(sut_task_f fn)
 
 	makecontext(&(tdescptr->threadcontext), fn, 0);
 
-	pthread_mutex_lock(&lock);
     struct queue_entry *node = queue_new_node(tdescptr);
+
+	pthread_mutex_lock(&lock);
     queue_insert_tail(&q_task, node);
 	pthread_mutex_unlock(&lock);
 
@@ -120,7 +120,7 @@ void sut_yield()
 }
 
 void sut_exit()
-{
+{	
 	pthread_mutex_lock(&lock);
     struct queue_entry *elem = queue_pop_head(&q_task);
 	pthread_mutex_unlock(&lock);
@@ -135,7 +135,7 @@ void sut_open(char *dest, int port)
 	pthread_mutex_unlock(&lock);
 	i_exec_node = elem;
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
-	connect_to_server(dest, port, &sockfd);
+	connect_to_server(dest, (uint16_t) port, &sockfd);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
 }
 void sut_write(char *buf, int size)
@@ -151,7 +151,9 @@ void sut_write(char *buf, int size)
 
 void sut_close()
 {
+	pthread_mutex_lock(&lock);
 	struct queue_entry *elem = queue_pop_head(&q_task);
+	pthread_mutex_unlock(&lock);
 	i_exec_node = elem;
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	close(sockfd);
@@ -165,10 +167,10 @@ char *sut_read()
 	pthread_mutex_unlock(&lock);
 	i_exec_node = elem;
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
-	memset(read_msg, 0, BUFSIZE);
-	recv_message(sockfd, read_msg, BUFSIZE);
+	memset(msg, 0, BUFSIZE);
+	recv_message(sockfd, msg, BUFSIZE);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
-	return read_msg;
+	return msg;
 }
 
 void sut_shutdown()
