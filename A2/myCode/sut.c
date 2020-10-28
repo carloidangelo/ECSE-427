@@ -11,21 +11,23 @@
 #include "sut.h"
 #define BUFSIZE 128
 
-struct queue q_task;
-struct queue_entry *i_exec_node;
+struct queue q_task; // task ready queue
+struct queue_entry *i_exec_node; // pending I/O operation
+// don't actually need a queue because  we assume only one 
+// read or write call could be pending at any given time
 
-pthread_t tid_c_exec;
-ucontext_t c_exec_context;
-pthread_t tid_i_exec;
-ucontext_t i_exec_context;
+pthread_t tid_c_exec; // C-EXEC thread
+ucontext_t c_exec_context; // C-EXEC thread context is saved here
+pthread_t tid_i_exec; // I-EXEC thread
+ucontext_t i_exec_context; // I-EXEC thread context is saved here
 
-pthread_mutex_t lock;
+pthread_mutex_t lock; // mutex lock
 
 threaddesc threadarr[MAX_THREADS];
 int numthreads, numthreadscancelled;
 
-int sockfd;
-char read_msg[BUFSIZE];
+int sockfd; // socket file descriptor given after sut_open()
+char read_msg[BUFSIZE]; // holds message received from sut_read()
 
 void *c_exec()
 {
@@ -139,6 +141,7 @@ void sut_open(char *dest, int port)
 	connect_to_server(dest, port, &sockfd);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
 }
+
 void sut_write(char *buf, int size)
 {
 	struct queue_entry *elem;
