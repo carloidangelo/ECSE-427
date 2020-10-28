@@ -22,12 +22,6 @@ int main(void) {
   }
 
   while (strcmp(msg, "quit\n")) {
-    //memset(msg, 0, sizeof(msg));
-    //ssize_t byte_count = recv_message(clientfd, msg, BUFSIZE);
-    //if (byte_count <= 0) {
-      //break;
-    //}
-    //printf("Client: %s", msg);
     send_message(clientfd, greeting, strlen(greeting));
   }
 

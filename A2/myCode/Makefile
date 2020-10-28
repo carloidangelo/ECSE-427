@@ -9,10 +9,14 @@ TEST3=test3
 TEST4=test4
 TEST5=test5
 
-SERVER=a2_server
+SERVER_READ=server_read
+SERVER_WRITE=server_write
 
-server: a1_lib.c example_server.c
-	$(CC) -o $(SERVER) $(CFLAGS) example_server.c a1_lib.c
+server_read: a1_lib.c example_server_read.c
+	$(CC) -o $(SERVER_READ) $(CFLAGS) example_server_read.c a1_lib.c
+
+server_write: a1_lib.c example_server_write.c
+	$(CC) -o $(SERVER_WRITE) $(CFLAGS) example_server_write.c a1_lib.c
 
 test: test1.c test2.c test3.c test4.c test5.c sut.c a1_lib.c
 	$(CC) -o $(TEST1) $(CFLAGS) test1.c sut.c a1_lib.c
@@ -22,7 +26,8 @@ test: test1.c test2.c test3.c test4.c test5.c sut.c a1_lib.c
 	$(CC) -o $(TEST5) $(CFLAGS) test5.c sut.c a1_lib.c
 
 clean:
-	rm -rf $(SERVER)
+	rm -rf $(SERVER_READ)
+	rm -rf $(SERVER_WRITE)
 	rm -rf $(TEST1)
 	rm -rf $(TEST2)
 	rm -rf $(TEST3)
