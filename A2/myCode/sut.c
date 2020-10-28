@@ -51,20 +51,24 @@ void *c_exec()
 
 void *i_exec()
 {
+	struct queue_entry *elem;
 	struct timespec tim, tim2;
 	while(1){
+		pthread_mutex_lock(&lock);
+		elem = i_exec_node;
+		pthread_mutex_unlock(&lock);
 		if (numthreads > 0 && numthreads-numthreadscancelled == 0){
 			pthread_exit(0);
-		}else if (i_exec_node == NULL){
+		}else if (elem == NULL){
    			tim.tv_sec = 0;
    			tim.tv_nsec = 1;
 			nanosleep(&tim,&tim2);
 		}else{
-			swapcontext(&i_exec_context, &(i_exec_node->thread->threadcontext));
+			swapcontext(&i_exec_context, &(elem->thread->threadcontext));
 			pthread_mutex_lock(&lock);
-			queue_insert_tail(&q_task, i_exec_node);
-			pthread_mutex_unlock(&lock);
+			queue_insert_tail(&q_task, elem);
 			i_exec_node = NULL;
+			pthread_mutex_unlock(&lock);
 		}
 	}
 }
@@ -135,8 +139,8 @@ void sut_open(char *dest, int port)
 	struct queue_entry *elem;
 	pthread_mutex_lock(&lock);
 	elem = queue_pop_head(&q_task);
-	pthread_mutex_unlock(&lock);
 	i_exec_node = elem;
+	pthread_mutex_unlock(&lock);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	connect_to_server(dest, port, &sockfd);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
@@ -147,8 +151,8 @@ void sut_write(char *buf, int size)
 	struct queue_entry *elem;
 	pthread_mutex_lock(&lock);
 	elem = queue_pop_head(&q_task);
-	pthread_mutex_unlock(&lock);
 	i_exec_node = elem;
+	pthread_mutex_unlock(&lock);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	send_message(sockfd, buf, size);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
@@ -159,8 +163,8 @@ void sut_close()
 	struct queue_entry *elem;
 	pthread_mutex_lock(&lock);
 	elem = queue_pop_head(&q_task);
-	pthread_mutex_unlock(&lock);
 	i_exec_node = elem;
+	pthread_mutex_unlock(&lock);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	close(sockfd);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
@@ -168,13 +172,13 @@ void sut_close()
 
 char *sut_read()
 {
+	memset(read_msg, 0, BUFSIZE);
 	struct queue_entry *elem;
 	pthread_mutex_lock(&lock);
-	elem= queue_pop_head(&q_task);
-	pthread_mutex_unlock(&lock);
+	elem = queue_pop_head(&q_task);
 	i_exec_node = elem;
+	pthread_mutex_unlock(&lock);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
-	memset(read_msg, 0, BUFSIZE);
 	recv_message(sockfd, read_msg, BUFSIZE);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
 	return read_msg;
