@@ -21,7 +21,8 @@ ucontext_t c_exec_context; // C-EXEC thread context is saved here
 pthread_t tid_i_exec; // I-EXEC thread
 ucontext_t i_exec_context; // I-EXEC thread context is saved here
 
-pthread_mutex_t lock; // mutex lock
+pthread_mutex_t lock_queue; // mutex lock for queue
+pthread_mutex_t lock_node; // mutex lock for node
 
 threaddesc threadarr[MAX_THREADS];
 int numthreads, numthreadscancelled;
@@ -34,9 +35,9 @@ void *c_exec()
 	struct queue_entry *elem;
 	struct timespec tim, tim2;
 	while(1){
-		pthread_mutex_lock(&lock);
+		pthread_mutex_lock(&lock_queue);
 		elem = queue_peek_front(&q_task);
-		pthread_mutex_unlock(&lock);
+		pthread_mutex_unlock(&lock_queue);
 		if (numthreads > 0 && numthreads-numthreadscancelled == 0){
 			pthread_exit(0);
 		}else if (elem == NULL){
@@ -54,9 +55,9 @@ void *i_exec()
 	struct queue_entry *elem;
 	struct timespec tim, tim2;
 	while(1){
-		pthread_mutex_lock(&lock);
+		pthread_mutex_lock(&lock_node);
 		elem = i_exec_node;
-		pthread_mutex_unlock(&lock);
+		pthread_mutex_unlock(&lock_node);
 		if (numthreads > 0 && numthreads-numthreadscancelled == 0){
 			pthread_exit(0);
 		}else if (elem == NULL){
@@ -65,10 +66,12 @@ void *i_exec()
 			nanosleep(&tim,&tim2);
 		}else{
 			swapcontext(&i_exec_context, &(elem->thread->threadcontext));
-			pthread_mutex_lock(&lock);
+			pthread_mutex_lock(&lock_queue);
 			queue_insert_tail(&q_task, elem);
+			pthread_mutex_unlock(&lock_queue);
+			pthread_mutex_lock(&lock_node);
 			i_exec_node = NULL;
-			pthread_mutex_unlock(&lock);
+			pthread_mutex_unlock(&lock_node);
 		}
 	}
 }
@@ -79,7 +82,8 @@ void sut_init()
     queue_init(&q_task);
 	numthreads = 0;
 	numthreadscancelled = 0;
-	pthread_mutex_init(&lock, NULL);
+	pthread_mutex_init(&lock_queue, NULL);
+	pthread_mutex_init(&lock_node, NULL);
 	pthread_create(&tid_c_exec, NULL, c_exec, NULL);
 	pthread_create(&tid_i_exec, NULL, i_exec, NULL);
 }
@@ -106,9 +110,9 @@ bool sut_create(sut_task_f fn)
 
 	makecontext(&(tdescptr->threadcontext), fn, 0);
 
-	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&lock_queue);
     queue_insert_tail(&q_task, queue_new_node(tdescptr));
-	pthread_mutex_unlock(&lock);
+	pthread_mutex_unlock(&lock_queue);
 
 	numthreads += 1;
 
@@ -118,18 +122,18 @@ bool sut_create(sut_task_f fn)
 void sut_yield()
 {
 	struct queue_entry *elem;
-	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&lock_queue);
     elem = queue_pop_head(&q_task);
     queue_insert_tail(&q_task, elem);
-	pthread_mutex_unlock(&lock);
+	pthread_mutex_unlock(&lock_queue);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 }
 
 void sut_exit()
 {
-	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&lock_queue);
     queue_pop_head(&q_task);
-	pthread_mutex_unlock(&lock);
+	pthread_mutex_unlock(&lock_queue);
 	numthreadscancelled += 1;
 	setcontext(&c_exec_context);
 }
@@ -137,10 +141,12 @@ void sut_exit()
 void sut_open(char *dest, int port)
 {
 	struct queue_entry *elem;
-	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&lock_queue);
 	elem = queue_pop_head(&q_task);
+	pthread_mutex_unlock(&lock_queue);
+	pthread_mutex_lock(&lock_node);
 	i_exec_node = elem;
-	pthread_mutex_unlock(&lock);
+	pthread_mutex_unlock(&lock_node);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	connect_to_server(dest, port, &sockfd);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
@@ -149,10 +155,12 @@ void sut_open(char *dest, int port)
 void sut_write(char *buf, int size)
 {
 	struct queue_entry *elem;
-	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&lock_queue);
 	elem = queue_pop_head(&q_task);
+	pthread_mutex_unlock(&lock_queue);
+	pthread_mutex_lock(&lock_node);
 	i_exec_node = elem;
-	pthread_mutex_unlock(&lock);
+	pthread_mutex_unlock(&lock_node);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	send_message(sockfd, buf, size);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
@@ -161,10 +169,12 @@ void sut_write(char *buf, int size)
 void sut_close()
 {
 	struct queue_entry *elem;
-	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&lock_queue);
 	elem = queue_pop_head(&q_task);
+	pthread_mutex_unlock(&lock_queue);
+	pthread_mutex_lock(&lock_node);
 	i_exec_node = elem;
-	pthread_mutex_unlock(&lock);
+	pthread_mutex_unlock(&lock_node);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	close(sockfd);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
@@ -174,10 +184,12 @@ char *sut_read()
 {
 	memset(read_msg, 0, BUFSIZE);
 	struct queue_entry *elem;
-	pthread_mutex_lock(&lock);
+	pthread_mutex_lock(&lock_queue);
 	elem = queue_pop_head(&q_task);
+	pthread_mutex_unlock(&lock_queue);
+	pthread_mutex_lock(&lock_node);
 	i_exec_node = elem;
-	pthread_mutex_unlock(&lock);
+	pthread_mutex_unlock(&lock_node);
 	swapcontext(&(elem->thread->threadcontext), &c_exec_context);
 	recv_message(sockfd, read_msg, BUFSIZE);
 	swapcontext(&(elem->thread->threadcontext), &i_exec_context);
@@ -188,6 +200,7 @@ void sut_shutdown()
 {
 	pthread_join(tid_c_exec,NULL);
 	pthread_join(tid_i_exec,NULL);
-	pthread_mutex_destroy(&lock);
+	pthread_mutex_destroy(&lock_queue);
+	pthread_mutex_destroy(&lock_node);
 }
 
