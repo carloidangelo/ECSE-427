@@ -555,9 +555,9 @@ void add_block_freeList(void *block)
 				set_blockN(block, NN);
 				if (freeListTail == (void *)N){
 					freeListTail = block;
-				}
-				if (nextFitPointer == (void *)N){
 					nextFitPointer = freeListHead;
+				}else{
+					nextFitPointer = (void *)NN;
 				}
 				//	Updates SMA info
 				totalFreeSize += FREE_BLOCK_HEADER_SIZE;

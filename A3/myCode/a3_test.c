@@ -141,11 +141,8 @@ int main(int argc, char *argv[])
 	// Sets Policy to Next Fit
 	sma_mallopt(2);
 
-	sma_mallinfo();
 	char *cp3 = (char *)sma_malloc(16 * 1024 * 3);
-	sma_mallinfo();
 	char *cp4 = (char *)sma_malloc(16 * 1024 * 2);
-	sma_mallinfo();
 
 	// Testing if the correct holes have been allocated
 	if (cp3 == c[8] && cp3 != NULL)
