@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 		puts("\t\t\t\t PASSED\n");
 	else
 		puts("\t\t\t\t FAILED\n");
-/*
+
 	// Test 2: Program Break expansion Test
 	puts("Test 2: Program break expansion test...");
 
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 		puts("\t\t\t\t PASSED\n");
 	else
 		puts("\t\t\t\t FAILED\n");
-
+/*
 	// Test 3: Worst Fit Test
 	puts("Test 3: Check for Worst Fit algorithm...");
 	// Sets Policy to Worst Fit
