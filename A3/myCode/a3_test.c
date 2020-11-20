@@ -40,29 +40,29 @@ int main(int argc, char *argv[])
 	for (i = 0; i < 32; i++)
 	{
 		c[i] = (char *)sma_malloc(1024);
-		// sprintf(str, "c[i]: %p", c[i]);
-		// puts(str);
+		sprintf(str, "c[i]: %p", c[i]);
+		puts(str);
 	}
 
 	// Now deallocating some of the slots ..to free
 	for (i = 10; i < 18; i++)
 	{
 		sma_free(c[i]);
-		// sprintf(str, "Freeing c[i]: %p", c[i]);
-		// puts(str);
+		sprintf(str, "Freeing c[i]: %p", c[i]);
+		puts(str);
 	}
 
 	// Allocate some storage .. this should go into the freed storage
 	ct = (char *)sma_malloc(5 * 1024);
-	// sprintf(str, "CT : %p", ct);
-	// puts(str);
+	sprintf(str, "CT : %p", ct);
+	puts(str);
 
 	// Testing if you are allocating excess memory at the end
-	if (ct > c[31])
+	if (ct < c[31])
 		puts("\t\t\t\t PASSED\n");
 	else
 		puts("\t\t\t\t FAILED\n");
-
+/*
 	// Test 2: Program Break expansion Test
 	puts("Test 2: Program break expansion test...");
 
@@ -193,6 +193,6 @@ int main(int argc, char *argv[])
 	puts("Test 6: Print SMA Statistics...");
 	puts("===============================");
 	sma_mallinfo();
-
+*/
 	return (0);
 }

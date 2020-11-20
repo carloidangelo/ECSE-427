@@ -25,8 +25,10 @@
 /* Definitions*/
 #define MAX_TOP_FREE (128 * 1024) // Max top free block size = 128 Kbytes
 //	TODO: Change the Header size if required
-#define FREE_BLOCK_HEADER_SIZE 2 * sizeof(char *) + sizeof(int) // Size of the Header in a free memory block
+// Header SIze = Bottom Header + Top Header
+#define FREE_BLOCK_HEADER_SIZE  32 * sizeof(char) // Size of the Header in a free memory block
 //	TODO: Add constants here
+#define FREE_BLOCK_BOTTOM_HEADER_SIZE  8 * sizeof(char) // Size of the bottom Header in a free memory block
 
 typedef enum //	Policy type definition
 {
@@ -41,7 +43,7 @@ unsigned long totalAllocatedSize = 0; //	Total Allocated memory in Bytes
 unsigned long totalFreeSize = 0;	  //	Total Free memory in Bytes in the free memory list
 Policy currentPolicy = WORST;		  //	Current Policy
 //	TODO: Add any global variables here
-
+int totalFreeLength = 0;              //    Number of free memory blocks in free memory list
 /*
  * =====================================================================================
  *	Public Functions for SMA
@@ -115,6 +117,9 @@ void sma_free(void *ptr)
 		//	Adds the block to the free memory list
 		add_block_freeList(ptr);
 	}
+	char str[100]; 
+	sprintf(str, "totalFreeSize: %lu %d", totalFreeSize, totalFreeLength);
+	puts(str);
 }
 
 /*
@@ -195,7 +200,11 @@ void *allocate_pBrk(int size)
 	//	TODO: 	Allocate memory by incrementing the Program Break by calling sbrk() or brk()
 	//	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
 	//			Also, if you are getting a larger memory, you need to put the excess in the free list
-
+	
+	excessSize = 0; // 50 KB excess memory
+	newBlock = sbrk((size + FREE_BLOCK_HEADER_SIZE) + excessSize);
+	
+ 
 	//	Allocates the Memory Block
 	allocate_block(newBlock, size, excessSize, 0);
 
@@ -249,6 +258,7 @@ void *allocate_worst_fit(int size)
 	//	Checks if appropriate block is found.
 	if (blockFound)
 	{
+		excessSize = get_blockSize(worstBlock) - size;
 		//	Allocates the Memory Block
 		allocate_block(worstBlock, size, excessSize, 1);
 	}
@@ -303,7 +313,13 @@ void *allocate_next_fit(int size)
 void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 {
 	void *excessFreeBlock; //	pointer for any excess free block
+	void *newBlockStart;   //   pointer to start of allocated block
 	int addFreeBlock;
+
+	// find start address of newBlock
+	char *pointer_temp = (char *)newBlock;
+	pointer_temp = pointer_temp + FREE_BLOCK_BOTTOM_HEADER_SIZE;
+	newBlockStart = (void *)pointer_temp;
 
 	// 	Checks if excess free size is big enough to be added to the free memory list
 	//	Helps to reduce external fragmentation
@@ -311,34 +327,50 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 	//	TODO: Adjust the condition based on your Head and Tail size (depends on your TAG system)
 	//	Hint: Might want to have a minimum size greater than the Head/Tail sizes
 	addFreeBlock = excessSize > FREE_BLOCK_HEADER_SIZE;
-
 	//	If excess free size is big enough
 	if (addFreeBlock)
 	{
 		//	TODO: Create a free block using the excess memory size, then assign it to the Excess Free Block
+		char *pointer_temp_2 = (char *)newBlock;
+		pointer_temp_2 = pointer_temp_2 + (size + FREE_BLOCK_HEADER_SIZE) + FREE_BLOCK_BOTTOM_HEADER_SIZE;
+		excessFreeBlock = (void *)pointer_temp_2;
 
 		//	Checks if the new block was allocated from the free memory list
 		if (fromFreeList)
 		{
+			void *P = (void *)get_blockP(newBlockStart);
+			void *N = (void *)get_blockN(newBlockStart);
+			int size = get_blockSize(newBlockStart);
+			set_blockSize(excessFreeBlock, excessSize - FREE_BLOCK_HEADER_SIZE);
+			set_blockType(excessFreeBlock, 0);
+			set_blockSize(newBlockStart, size - (excessSize - FREE_BLOCK_HEADER_SIZE));
+			set_blockType(newBlockStart, 1);
+
 			//	Removes new block and adds the excess free block to the free list
-			replace_block_freeList(newBlock, excessFreeBlock);
+			replace_block_freeList(newBlockStart, excessFreeBlock, P, N, size);
 		}
 		else
 		{
+			set_blockSize(excessFreeBlock, excessSize - FREE_BLOCK_HEADER_SIZE);
+			set_blockType(excessFreeBlock, 0);
+			set_blockSize(newBlockStart, size - (excessSize - FREE_BLOCK_HEADER_SIZE));
+			set_blockType(newBlockStart, 1);
 			//	Adds excess free block to the free list
-			add_block_freeList(excessFreeBlock);
+			add_block_freeList((void *)(((char *)excessFreeBlock) - FREE_BLOCK_BOTTOM_HEADER_SIZE));
 		}
 	}
 	//	Otherwise add the excess memory to the new block
 	else
 	{
 		//	TODO: Add excessSize to size and assign it to the new Block
+		set_blockSize(newBlockStart, size + excessSize);
+		set_blockType(newBlockStart, 1);
 
 		//	Checks if the new block was allocated from the free memory list
 		if (fromFreeList)
 		{
 			//	Removes the new block from the free list
-			remove_block_freeList(newBlock);
+			remove_block_freeList(newBlockStart);
 		}
 	}
 }
@@ -349,13 +381,28 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
  * 	Output type:	void
  * 	Description:	Replaces old block with the new block in the free list
  */
-void replace_block_freeList(void *oldBlock, void *newBlock)
+void replace_block_freeList(void *oldBlock, void *newBlock, void *P, void *N, int size)
 {
 	//	TODO: Replace the old block with the new block
+	if ((oldBlock == freeListHead) && (oldBlock == freeListTail)){
+		freeListHead = newBlock;
+		freeListTail = newBlock;
+	}else if (oldBlock == freeListHead){
+		set_blockP(N, (unsigned long)newBlock);
+		freeListHead = newBlock;
+	}else if (oldBlock == freeListTail){
+		set_blockN(P, (unsigned long)newBlock);
+		freeListTail = newBlock;
+	}else{
+		set_blockN(P, (unsigned long)newBlock);
+		set_blockP(N, (unsigned long)newBlock);
+	}
+	set_blockN(newBlock, (unsigned long)N);
+	set_blockP(newBlock, (unsigned long)P);
 
 	//	Updates SMA info
-	totalAllocatedSize += (get_blockSize(oldBlock) - get_blockSize(newBlock));
-	totalFreeSize += (get_blockSize(newBlock) - get_blockSize(oldBlock));
+	totalAllocatedSize += (size - get_blockSize(newBlock));
+	totalFreeSize += (get_blockSize(newBlock) - size);
 }
 
 /*
@@ -366,16 +413,138 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
  */
 void add_block_freeList(void *block)
 {
+	void *blockStart = (void *)(((char *)block) + FREE_BLOCK_BOTTOM_HEADER_SIZE); 
 	//	TODO: 	Add the block to the free list
 	//	Hint: 	You could add the free block at the end of the list, but need to check if there
-	//			exits a list. You need to add the TAG to the list.
+	//			exits a list. You need to add the AGT to the list.
 	//			Also, you would need to check if merging with the "adjacent" blocks is possible or not.
 	//			Merging would be tideous. Check adjacent blocks, then also check if the merged
 	//			block is at the top and is bigger than the largest free block allowed (128kB).
+	if (get_blockType(blockStart) == 0){ // check if the block is in-use or not
+		if (freeListHead == NULL) { // check if there exists a list
+			// update N and P
+			set_blockN(blockStart, 0); // 0 represents NULL
+			set_blockP(blockStart, 0); // 0 represents NULL
+			freeListHead = blockStart;
+			freeListTail = blockStart;
+			totalFreeLength = totalFreeLength + 1;
+		}else {
+			// update current last free block in list
+			set_blockN(freeListTail, (unsigned long)blockStart);
 
-	//	Updates SMA info
-	totalAllocatedSize -= get_blockSize(block);
-	totalFreeSize += get_blockSize(block);
+			// update list by adding new last free block
+			set_blockN(blockStart, 0); // 0 represents NULL
+			set_blockP(blockStart, (unsigned long)freeListTail);
+			freeListTail = blockStart;
+			totalFreeLength = totalFreeLength + 1;
+		}
+		//	Updates SMA info
+		totalAllocatedSize -= get_blockSize(blockStart);
+		totalFreeSize += get_blockSize(blockStart);
+	}else if (get_blockType(blockStart) == 1){
+		// change block Type
+		set_blockType(blockStart, 0);
+		if (freeListHead == NULL) { // check if there exists a list
+			// update N and P
+			set_blockN(blockStart, 0); // 0 represents NULL
+			set_blockP(blockStart, 0); // 0 represents NULL
+			freeListHead = blockStart;
+			freeListTail = blockStart;
+			totalFreeLength = totalFreeLength + 1;
+			//	Updates SMA info
+			totalAllocatedSize -= get_blockSize(blockStart);
+			totalFreeSize += get_blockSize(blockStart);
+		}else {
+			// update free memory list
+			unsigned long currentAddress = (unsigned long)freeListHead;
+			int i;
+			for (i = 0; i < totalFreeLength; i++){ // iterate through free memory list
+				if (blockStart < (void *)currentAddress){
+					// update TAGs
+					set_blockP(blockStart, get_blockP((void *)currentAddress));
+					set_blockN(blockStart, currentAddress);
+					if (currentAddress == (unsigned long)freeListHead){ // check if list Head should change
+						freeListHead = blockStart;
+					}else {
+						set_blockN((void *)get_blockP((void *)currentAddress), (unsigned long)blockStart);
+					}
+					set_blockP((void *)currentAddress, (unsigned long)blockStart);
+					break;
+				}
+				currentAddress = get_blockN((void *)currentAddress);
+			}
+			if (i == totalFreeLength){ // block is last block in free memory list
+				// update TAGs
+				set_blockN(freeListTail, (unsigned long)blockStart);
+				set_blockN(blockStart, 0);
+				set_blockP(blockStart, (unsigned long)freeListTail);
+				freeListTail = blockStart;
+			}
+			totalFreeLength = totalFreeLength + 1;
+			//	Updates SMA info
+			totalAllocatedSize -= get_blockSize(blockStart);
+			totalFreeSize += get_blockSize(blockStart);
+
+			// merge if needed
+			unsigned long N, P, blockAddress;
+			int NSize, PSize, blockSize;
+			N = get_blockN(blockStart);
+			if (blockStart == freeListTail){
+				NSize = -1; // wrong size 
+			}else{
+				NSize = get_blockSize((void *)N);
+			}
+
+			P = get_blockP(blockStart);
+			if (blockStart == freeListHead){
+				PSize = -1; // wrong size
+			}else{
+				PSize = get_blockSize((void *)P);
+			}
+			blockAddress = (unsigned long)blockStart;
+			blockSize = get_blockSize(blockStart);
+
+			if ( ((N - blockAddress) == (blockSize + FREE_BLOCK_HEADER_SIZE))
+			&& ((blockAddress - P) == (PSize + FREE_BLOCK_HEADER_SIZE)) ){
+				unsigned long NN = get_blockN((void *)N);
+				unsigned long PP = get_blockP((void *)P);
+
+				// merge blocks
+				set_blockSize((void *)P, NSize + PSize + blockSize + (2*FREE_BLOCK_HEADER_SIZE));
+				set_blockType((void *)P, 0);
+				set_blockP((void *)P, PP);
+				set_blockN((void *)P, NN);
+					
+				//	Updates SMA info
+				totalFreeSize += 2*FREE_BLOCK_HEADER_SIZE;
+				totalFreeLength = totalFreeLength - 2;
+			}else if( (N - blockAddress) == (blockSize + FREE_BLOCK_HEADER_SIZE) ){
+				unsigned long NN = get_blockN((void *)N);
+
+				// merge blocks
+				set_blockSize(blockStart, NSize + blockSize + FREE_BLOCK_HEADER_SIZE);
+				set_blockType(blockStart, 0);
+				set_blockP(blockStart, P);
+				set_blockN(blockStart, NN);
+					
+				//	Updates SMA info
+				totalFreeSize += FREE_BLOCK_HEADER_SIZE;
+				totalFreeLength = totalFreeLength - 1;
+			}else if ((blockAddress - P) == (PSize + FREE_BLOCK_HEADER_SIZE)){
+				unsigned long PP = get_blockP((void *)P);
+
+				// merge blocks
+				set_blockSize((void *)P, PSize + blockSize + FREE_BLOCK_HEADER_SIZE);
+				set_blockType((void *)P, 0);
+				set_blockP((void *)P, PP);
+				set_blockN((void *)P, N);
+					
+				//	Updates SMA info
+				totalFreeSize += FREE_BLOCK_HEADER_SIZE;
+				totalFreeLength = totalFreeLength - 1;
+			}
+		}
+	}
 }
 
 /*
@@ -389,28 +558,25 @@ void remove_block_freeList(void *block)
 	//	TODO: 	Remove the block from the free list
 	//	Hint: 	You need to update the pointers in the free blocks before and after this block.
 	//			You also need to remove any TAG in the free block.
+	if ((block == freeListHead) && (block == freeListTail)){
+		freeListHead = NULL;
+		freeListTail = NULL;
+	}else if (block == freeListHead){
+		set_blockP((void *)get_blockN(block), 0); // 0 represents NULL
+		freeListHead = (void *)get_blockN(block);
+	}else if (block == freeListTail){
+		set_blockN((void *)get_blockP(block), 0); // 0 represents NULL
+		freeListTail = (void *)get_blockP(block);
+	}else{
+		set_blockN((void *)get_blockP(block), get_blockN(block));
+		set_blockP((void *)get_blockN(block), get_blockP(block));
+	}
+	set_blockType(block, 1); // block is in-use
 
 	//	Updates SMA info
 	totalAllocatedSize += get_blockSize(block);
 	totalFreeSize -= get_blockSize(block);
-}
-
-/*
- *	Funcation Name: get_blockSize
- *	Input type:		void*
- * 	Output type:	int
- * 	Description:	Extracts the Block Size
- */
-int get_blockSize(void *ptr)
-{
-	int *pSize;
-
-	//	Points to the address where the Length of the block is stored
-	pSize = (int *)ptr;
-	pSize--;
-
-	//	Returns the deferenced size
-	return *(int *)pSize;
+	totalFreeLength = totalFreeLength - 1;
 }
 
 /*
@@ -426,4 +592,141 @@ int get_largest_freeBlock()
 	//	TODO: Iterate through the Free Block List to find the largest free block and return its size
 
 	return largestBlockSize;
+}
+
+/*
+ *	Funcation Name: get_blockSize
+ *	Input type:		void*
+ * 	Output type:	int
+ * 	Description:	Extracts the Block Size
+ */
+int get_blockSize(void *ptr)
+{
+	int *pSize;
+
+	//	Points to the address where the Size of the block is stored
+	pSize = (int *)ptr;
+	pSize--;
+
+	return *pSize;
+}
+
+/*
+ *	Funcation Name: set_blockSize
+ *	Input type:		void* and int
+ * 	Output type:	void
+ * 	Description:	Sets the Block Size
+ */
+void set_blockSize(void *ptr, int size)
+{
+	int *pSize;
+	pSize = (int *)ptr;
+	pSize = pSize - 1;
+	*pSize = size;
+	pSize = pSize + 1;
+	pSize = (int *)(((char *)pSize) + size);
+	pSize = pSize + 4;
+	*pSize = size;
+}
+
+/*
+ *	Funcation Name: get_blockType
+ *	Input type:		void*
+ * 	Output type:	int
+ * 	Description:	Extracts the Block Type
+ */
+int get_blockType(void *ptr)
+{
+	int *pType;
+
+	//	Points to the address where the Type of the block is stored
+	pType = (int *)ptr;
+	pType = pType - 2;
+
+	return *pType;
+}
+
+/*
+ *	Funcation Name: set_blockType
+ *	Input type:		void* and int
+ * 	Output type:	void
+ * 	Description:	Sets the Block Type
+ */
+void set_blockType(void *ptr, int type)
+{
+	int *pType;
+	int blockSize = get_blockSize(ptr);
+	pType = (int *)ptr;
+	pType = pType - 2;
+	*pType = type;
+	pType = pType + 2;
+	pType = (int *)(((char *)pType) + blockSize);
+	pType = pType + 5;
+	*pType = type;
+}
+
+/*
+ *	Funcation Name: get_blockN
+ *	Input type:		void*
+ * 	Output type:	unsigned long
+ * 	Description:	Extracts N
+ */
+unsigned long get_blockN(void *ptr)
+{
+	char *pN;
+	int blockSize = get_blockSize(ptr);
+
+	//	Points to the address where the N of the block is stored
+	pN = (char *)ptr;
+	pN = pN + blockSize;
+
+	return *(unsigned long *)pN;
+}
+
+/*
+ *	Funcation Name: set_blockN
+ *	Input type:		void* and unsigned long
+ * 	Output type:	void
+ * 	Description:	Sets the Block N
+ */
+void set_blockN(void *ptr, unsigned long address)
+{
+	char *pN;
+	int blockSize = get_blockSize(ptr);
+	pN = (char *)ptr;
+	pN = pN + blockSize;
+	*(unsigned long *)pN = address;
+}
+
+/*
+ *	Funcation Name: get_blockP
+ *	Input type:		void*
+ * 	Output type:	unsigned long
+ * 	Description:	Extracts P
+ */
+unsigned long get_blockP(void *ptr)
+{
+	char *pP;
+	int blockSize = get_blockSize(ptr);
+
+	//	Points to the address where the P of the block is stored
+	pP = (char *)ptr;
+	pP = pP + blockSize + 8;
+
+	return *(unsigned long *)pP;
+}
+
+/*
+ *	Funcation Name: set_blockP
+ *	Input type:		void* and unsigned long
+ * 	Output type:	void
+ * 	Description:	Sets the Block P
+ */
+void set_blockP(void *ptr, unsigned long address)
+{
+	char *pP;
+	int blockSize = get_blockSize(ptr);
+	pP = (char *)ptr;
+	pP = pP + blockSize + 8;
+	*(unsigned long *)pP = address;
 }
