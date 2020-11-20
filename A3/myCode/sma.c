@@ -44,6 +44,7 @@ unsigned long totalFreeSize = 0;	  //	Total Free memory in Bytes in the free mem
 Policy currentPolicy = WORST;		  //	Current Policy
 //	TODO: Add any global variables here
 int totalFreeLength = 0;              //    Number of free memory blocks in free memory list
+void *nextFitPointer = NULL;		  //    Pointer used in Next fit
 /*
  * =====================================================================================
  *	Public Functions for SMA
@@ -198,7 +199,7 @@ void *allocate_pBrk(int size)
 	//	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
 	//			Also, if you are getting a larger memory, you need to put the excess in the free list
 	
-	excessSize = 0; // 50 KB excess memory
+	excessSize = 0 * 1024; // 50 KB excess memory
 	newBlock = sbrk((size + FREE_BLOCK_HEADER_SIZE) + excessSize);
 	newBlock = (void *)((char *)newBlock + FREE_BLOCK_BOTTOM_HEADER_SIZE);
  
@@ -299,9 +300,30 @@ void *allocate_next_fit(int size)
 	//			Program Break, you start from the beginning of your heap, as in with the free block with
 	//			the smallest address)
 
+	int i;
+	int currentBlockSize;
+	unsigned long currentAddress;
+	if (nextFitPointer == NULL){
+		currentAddress = (unsigned long)freeListHead;
+	}else {
+		currentAddress = (unsigned long)nextFitPointer;
+	}
+	for (i = 0; i < totalFreeLength; i++){ 
+		currentBlockSize = get_blockSize((void *)currentAddress);
+		if (currentBlockSize > size){
+			blockFound = 1;
+			nextBlock = (void *)currentAddress;
+			break;
+		}
+		currentAddress = get_blockN((void *)currentAddress);
+		if (currentAddress == 0){
+			currentAddress = (unsigned long)freeListHead;
+		}
+	}
 	//	Checks if appropriate found is found.
 	if (blockFound)
 	{
+		excessSize = currentBlockSize - size;
 		//	Allocates the Memory Block
 		allocate_block(nextBlock, size, excessSize, 1);
 	}
@@ -357,7 +379,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 		{
 			set_blockSize(excessFreeBlock, excessSize - FREE_BLOCK_HEADER_SIZE);
 			set_blockType(excessFreeBlock, 0);
-			set_blockSize(newBlock, size - (excessSize - FREE_BLOCK_HEADER_SIZE));
+			set_blockSize(newBlock, size);
 			set_blockType(newBlock, 1);
 			//	Adds excess free block to the free list
 			add_block_freeList(excessFreeBlock);
@@ -403,10 +425,10 @@ void replace_block_freeList(void *oldBlock, void *newBlock, void *P, void *N, in
 	}
 	set_blockN(newBlock, (unsigned long)N);
 	set_blockP(newBlock, (unsigned long)P);
+	nextFitPointer = newBlock;
 
 	//	Updates SMA info
-	totalAllocatedSize += (size - (get_blockSize(newBlock) + FREE_BLOCK_HEADER_SIZE));
-	totalFreeSize += (get_blockSize(oldBlock) + FREE_BLOCK_HEADER_SIZE - size);
+	totalFreeSize += -(get_blockSize(oldBlock) + FREE_BLOCK_HEADER_SIZE);
 }
 
 /*
@@ -442,7 +464,6 @@ void add_block_freeList(void *block)
 			totalFreeLength = totalFreeLength + 1;
 		}
 		//	Updates SMA info
-		totalAllocatedSize -= get_blockSize(block);
 		totalFreeSize += get_blockSize(block);
 	}else if (get_blockType(block) == 1){
 		// change block Type
@@ -488,7 +509,7 @@ void add_block_freeList(void *block)
 			totalAllocatedSize -= get_blockSize(block);
 			totalFreeSize += get_blockSize(block);
 
-			// merge if needed
+			// MERGE IF NEEDED
 			unsigned long N, P, blockAddress;
 			int NSize, PSize, blockSize;
 			N = get_blockN(block);
@@ -517,6 +538,7 @@ void add_block_freeList(void *block)
 				set_blockType((void *)P, 0);
 				set_blockP((void *)P, PP);
 				set_blockN((void *)P, NN);
+
 				if (freeListTail == (void *)N){
 					freeListTail = (void *)P;
 				}
@@ -534,15 +556,14 @@ void add_block_freeList(void *block)
 				if (freeListTail == (void *)N){
 					freeListTail = block;
 				}
+				if (nextFitPointer == (void *)N){
+					nextFitPointer = freeListHead;
+				}
 				//	Updates SMA info
 				totalFreeSize += FREE_BLOCK_HEADER_SIZE;
 				totalFreeLength = totalFreeLength - 1;
 			}else if ((blockAddress - P) == (PSize + FREE_BLOCK_HEADER_SIZE)){
 				unsigned long PP = get_blockP((void *)P);
-
-				char str[100]; 
-				sprintf(str, "blockSize: %d %d %d %p", PSize, blockSize, totalFreeLength, (void *)P);
-				puts(str);
 
 				// merge blocks
 				set_blockSize((void *)P, PSize + blockSize + FREE_BLOCK_HEADER_SIZE);
@@ -575,15 +596,19 @@ void remove_block_freeList(void *block)
 	if ((block == freeListHead) && (block == freeListTail)){
 		freeListHead = NULL;
 		freeListTail = NULL;
+		nextFitPointer = NULL;
 	}else if (block == freeListHead){
 		set_blockP((void *)get_blockN(block), 0); // 0 represents NULL
 		freeListHead = (void *)get_blockN(block);
+		nextFitPointer = freeListHead;
 	}else if (block == freeListTail){
 		set_blockN((void *)get_blockP(block), 0); // 0 represents NULL
 		freeListTail = (void *)get_blockP(block);
+		nextFitPointer = freeListHead;
 	}else{
 		set_blockN((void *)get_blockP(block), get_blockN(block));
 		set_blockP((void *)get_blockN(block), get_blockP(block));
+		nextFitPointer = (void *)get_blockN(block);
 	}
 	set_blockType(block, 1); // block is in-use
 
@@ -602,9 +627,19 @@ void remove_block_freeList(void *block)
 int get_largest_freeBlock()
 {
 	int largestBlockSize = 0;
-
 	//	TODO: Iterate through the Free Block List to find the largest free block and return its size
-
+	if (totalFreeLength != 0){
+		int i;
+		unsigned long currentAddress = (unsigned long)freeListHead;
+		int currentBlockSize;
+		for (i = 0; i < totalFreeLength; i++){ 
+			currentBlockSize = get_blockSize((void *)currentAddress);
+			if (largestBlockSize < currentBlockSize){
+				largestBlockSize = currentBlockSize;
+			}
+			currentAddress = get_blockN((void *)currentAddress);
+		}
+	}
 	return largestBlockSize;
 }
 
