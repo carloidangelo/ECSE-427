@@ -249,7 +249,7 @@ void *allocate_pBrk(int size)
 	//	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
 	//			Also, if you are getting a larger memory, you need to put the excess in the free list
 	
-	excessSize = 0 * 1024; // 100 KB excess memory
+	excessSize = 0 * 1024; // 110 KB excess memory
 	newBlock = sbrk((size + FREE_BLOCK_HEADER_SIZE) + excessSize);
 	newBlock = (void *)((char *)newBlock + FREE_BLOCK_BOTTOM_HEADER_SIZE);
  
