@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 	else
 		puts("\t\t\t\t FAILED\n");
 
-	/*
+	
 	// Test 2: Program Break expansion Test
 	puts("Test 2: Program break expansion test...");
 
@@ -84,11 +84,11 @@ int main(int argc, char *argv[])
 	else
 		puts("\t\t\t\t FAILED\n");
 
-	*/
+	
 	// Test 3: Worst Fit Test
 	puts("Test 3: Check for Worst Fit algorithm...");
 	// Sets Policy to Worst Fit
-	sma_mallopt(WORST_FIT);
+	sma_mallopt(1);
 
 	// Allocating 512 kbytes of memory..
 	for (i = 0; i < 32; i++)
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 	// Test 4: Next Fit Test
 	puts("Test 4: Check for Next Fit algorithm...");
 	// Sets Policy to Next Fit
-	sma_mallopt(NEXT_FIT);
+	sma_mallopt(2);
 
 	char *cp3 = (char *)sma_malloc(16 * 1024 * 3);
 	char *cp4 = (char *)sma_malloc(16 * 1024 * 2);
@@ -170,15 +170,16 @@ int main(int argc, char *argv[])
 
 	// Test 5: Realloc test (with Next Fit)
 	puts("Test 5: Check for Reallocation with Next Fit...");
-	*cp3 = 'ECSE_427';
-	*cp4 = 'COMP_310';
+	*cp3 = 'E';
+	*cp4 = 'C';
+	
 	cp3 = (char *)sma_realloc(cp3, 16 * 1024 * 5);
 	cp4 = (char *)sma_realloc(cp4, 16 * 1024 * 3);
 
 	if (cp3 == c[27] && cp3 != NULL && cp4 == c[8] && cp4 != NULL)
-	{
+	{	
 		//	Tests the Data stored by the memory blocks
-		if(*cp3 == 'ECSE_427' && *cp4 == 'COMP_310'){
+		if(*cp3 == 'E' && *cp4 == 'C'){
 			puts("\t\t\t\t PASSED\n");
 		}
 		else

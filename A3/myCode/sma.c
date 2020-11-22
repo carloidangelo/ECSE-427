@@ -158,12 +158,6 @@ void sma_mallinfo()
 	puts(str);
 	sprintf(str, "Size of largest contigious free space (in bytes): %d", largestFreeBlock);
 	puts(str);
-	sprintf(str, "Amount of Free Blocks: %d", totalFreeLength);
-	puts(str);
-	sprintf(str, "Header: %p", freeListHead);
-	puts(str);
-	sprintf(str, "Tail: %p", freeListTail);
-	puts(str);
 }
 
 /*
@@ -206,7 +200,8 @@ void *sma_realloc(void *ptr, int size)
 		totalAllocatedSize -= excess_size;
 
 	}else if (memory_change == 1){ // expand memory
-		sma_free(ptr);
+
+		sma_free(ptr); // free memory
 		
 		// Allocate memory from the free memory list
 		pMemory = allocate_freeList(size);
@@ -226,8 +221,7 @@ void *sma_realloc(void *ptr, int size)
 		}
 		// copy data
 		memcpy(pMemory, ptr, original_size); 
-		//((char *)pMemory)[original_size] = 0;
-
+	
 		// Updates SMA Info
 		totalAllocatedSize += size;
 	}
@@ -255,7 +249,7 @@ void *allocate_pBrk(int size)
 	//	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
 	//			Also, if you are getting a larger memory, you need to put the excess in the free list
 	
-	excessSize = 100 * 1024; // 100 KB excess memory
+	excessSize = 0 * 1024; // 100 KB excess memory
 	newBlock = sbrk((size + FREE_BLOCK_HEADER_SIZE) + excessSize);
 	newBlock = (void *)((char *)newBlock + FREE_BLOCK_BOTTOM_HEADER_SIZE);
  
@@ -314,7 +308,7 @@ void *allocate_worst_fit(int size)
 	int worstBlockSize = 0;
 	for (i = 0; i < totalFreeLength; i++){ 
 		currentBlockSize = get_blockSize(currentAddress);
-		if (currentBlockSize > size){
+		if (currentBlockSize >= size){
 			blockFound = 1;
 			if (worstBlockSize < currentBlockSize){
 				worstBlockSize = currentBlockSize;
@@ -367,7 +361,7 @@ void *allocate_next_fit(int size)
 	}
 	for (i = 0; i < totalFreeLength; i++){ 
 		currentBlockSize = get_blockSize((void *)currentAddress);
-		if (currentBlockSize > size){
+		if (currentBlockSize >= size){
 			blockFound = 1;
 			nextBlock = (void *)currentAddress;
 			break;
